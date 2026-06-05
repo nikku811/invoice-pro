@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { generateInvoicePDF } from "@/lib/pdf";
+import { generateInvoicePDF, BusinessProfile } from "@/lib/pdf";
 import { Button } from "../ui/Button";
 
 interface InvoiceItem {
@@ -34,6 +34,15 @@ interface InvoicePreviewProps {
 
 export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
   const router = useRouter();
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
+
+  // Fetch business profile on mount for PDF generation
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setProfile(data))
+      .catch(() => {}); // silently fail — PDF falls back to defaults
+  }, []);
 
   const handleDownload = () => {
     // B05 fix: warn user if invoice has > 11 items (PDF template limit)
@@ -43,7 +52,7 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
       );
       if (!proceed) return;
     }
-    generateInvoicePDF(invoice, items);
+    generateInvoicePDF(invoice, items, profile);
   };
 
   return (
@@ -102,9 +111,14 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
                 <span className="text-xxs font-black tracking-wide uppercase">Logo</span>
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Organization name</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Organization address<br />hajj<br />jsik<br />jaji
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {profile?.orgName || "Your Organization"}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed whitespace-pre-line">
+                  {profile?.orgAddress || "Address not set — configure in Settings"}
+                  {profile?.orgPhone && <><br />{profile.orgPhone}</>}
+                  {profile?.orgEmail && <><br />{profile.orgEmail}</>}
+                  {profile?.orgGstin && <><br />GSTIN: {profile.orgGstin}</>}
                 </p>
               </div>
             </div>

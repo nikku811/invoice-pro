@@ -26,8 +26,19 @@ model User {
 
   // Relations
   invoices Invoice[]
+  profile  BusinessProfile?
 
   @@map("users")
+}
+
+// ============================================================
+// InvoiceStatus Enum
+// Represents the lifecycle state of an invoice
+// ============================================================
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
 }
 
 // ============================================================
@@ -45,6 +56,7 @@ model Invoice {
   total         Float    @default(0)
   totalInWords  String?
   notes         String?
+  status        InvoiceStatus @default(DRAFT)
   userId        String
   createdAt     DateTime @default(now())
 
@@ -54,6 +66,7 @@ model Invoice {
 
   @@index([userId])
   @@index([invoiceNumber])
+  @@index([status])
   @@map("invoices")
 }
 
@@ -75,4 +88,26 @@ model InvoiceItem {
 
   @@index([invoiceId])
   @@map("invoice_items")
+}
+
+// ============================================================
+// BusinessProfile Model
+// Stores per-user organization details used on PDFs.
+// One-to-one relation with User (upserted on save).
+// ============================================================
+model BusinessProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  orgName     String
+  orgAddress  String?
+  orgPhone    String?
+  orgEmail    String?
+  orgWebsite  String?
+  orgGstin    String?
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("business_profiles")
 }

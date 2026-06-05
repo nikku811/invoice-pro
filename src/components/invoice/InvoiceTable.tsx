@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { generateInvoicePDF } from "@/lib/pdf";
+import { generateInvoicePDF, BusinessProfile } from "@/lib/pdf";
 import { Modal } from "../ui/Modal";
 
 interface InvoiceItem {
@@ -25,6 +25,7 @@ interface Invoice {
   notes?: string | null;
   subject?: string | null;
   address?: string | null;
+  status: "DRAFT" | "SENT" | "PAID";
   items: InvoiceItem[];
 }
 
@@ -43,6 +44,15 @@ export function InvoiceTable({
 }: InvoiceTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Fetch business profile once for PDF generation
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setProfile(data))
+      .catch(() => {});
+  }, []);
 
   // Local state for interactive filtering inputs
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -123,11 +133,7 @@ export function InvoiceTable({
     }
   };
 
-  const getStatusBadge = (idx: number) => {
-    // Fallback status tags since status is dynamic in Phase 5 mappings
-    const statuses = ["PAID", "SENT", "DRAFT"];
-    const status = statuses[idx % 3];
-    
+  const getStatusBadge = (status: "DRAFT" | "SENT" | "PAID") => {
     const styles = {
       PAID: "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30",
       SENT: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30",
@@ -137,7 +143,7 @@ export function InvoiceTable({
     return (
       <span
         className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
-          styles[status as keyof typeof styles]
+          styles[status]
         }`}
       >
         {status}
@@ -219,7 +225,7 @@ export function InvoiceTable({
                     <td className="px-6 py-4.5 font-semibold text-slate-905 dark:text-white">
                       {formatCurrency(invoice.total)}
                     </td>
-                    <td className="px-6 py-4.5">{getStatusBadge(idx)}</td>
+                    <td className="px-6 py-4.5">{getStatusBadge(invoice.status)}</td>
                     <td className="px-6 py-4.5 text-right space-x-2">
                       <button
                         onClick={() => {
@@ -230,7 +236,7 @@ export function InvoiceTable({
                             );
                             if (!proceed) return;
                           }
-                          generateInvoicePDF(invoice, invoice.items);
+                          generateInvoicePDF(invoice, invoice.items, profile);
                         }}
                         className="text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 cursor-pointer"
                         title="Download PDF"

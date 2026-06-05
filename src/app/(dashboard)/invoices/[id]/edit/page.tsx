@@ -31,6 +31,7 @@ export default async function EditInvoicePage({ params }: EditInvoicePageProps) 
     address: invoice.address,
     subject: invoice.subject,
     notes: invoice.notes,
+    status: invoice.status,
     items: invoice.items.map((item) => ({
       description: item.description,
       quantity: item.quantity,

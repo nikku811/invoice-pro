@@ -2,14 +2,17 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { authConfig } from "./auth.config";
 
 // ============================================================
-// Auth.js v5 Configuration
-// Provider: Credentials (email + password)
-// Session: JWT strategy (stateless, no DB session table)
+// Core Auth.js Instance
+// Merges edge-safe authConfig with credentials database lookup
+// and password hashing checks. Used inside serverless endpoints
+// where standard Node APIs are supported.
 // ============================================================
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "credentials",
@@ -18,7 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // Validate input
+        // Validate input presence
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -26,7 +29,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        // Find user by email
+        // Find user in PostgreSQL
         const user = await prisma.user.findUnique({
           where: { email },
         });
@@ -35,14 +38,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        // Verify password
+        // Compare password hash
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
           return null;
         }
 
-        // Return user object (stored in JWT)
+        // Return credentials session object
         return {
           id: user.id,
           name: user.name,
@@ -51,55 +54,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-
-  pages: {
-    signIn: "/login",
-  },
-
-  callbacks: {
-    async jwt({ token, user }) {
-      // On initial sign-in, add user id to token
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
-
-    async session({ session, token }) {
-      // Pass user id from token to session
-      if (session.user) {
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
-
-    async authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const isOnAuth =
-        nextUrl.pathname.startsWith("/login") ||
-        nextUrl.pathname.startsWith("/register");
-      const isOnProtected =
-        nextUrl.pathname.startsWith("/dashboard") ||
-        nextUrl.pathname.startsWith("/invoices");
-
-      // Redirect logged-in users away from auth pages
-      if (isLoggedIn && isOnAuth) {
-        return Response.redirect(new URL("/dashboard", nextUrl));
-      }
-
-      // Redirect unauthenticated users to login
-      if (!isLoggedIn && isOnProtected) {
-        return Response.redirect(new URL("/login", nextUrl));
-      }
-
-      return true;
-    },
-  },
-
-  trustHost: true,
 });

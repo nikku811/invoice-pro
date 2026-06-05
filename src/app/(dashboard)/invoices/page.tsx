@@ -36,6 +36,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
   // Apply conditional search/status queries
   const whereClause: any = {
     userId,
+    ...(status !== "ALL" ? { status } : {}),
     OR: search
       ? [
           { invoiceNumber: { contains: search, mode: "insensitive" } },
@@ -76,6 +77,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
     total: inv.total,
     totalInWords: inv.totalInWords,
     notes: inv.notes,
+    status: inv.status as "DRAFT" | "SENT" | "PAID",
     items: inv.items.map((item) => ({
       description: item.description,
       quantity: item.quantity,

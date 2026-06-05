@@ -29,26 +29,17 @@ export default async function DashboardPage() {
       date: true,
       clientName: true,
       total: true,
-      // Map schema.prisma notes/status to standard values
-      notes: true,
+      status: true,
     },
   });
 
-  // Since we haven't added status fields to schema.prisma yet (status was in Phase 1 design but not explicitly in Phase 2 DB requirements),
-  // we will map/fallback the status to DRAFT, SENT, or PAID based on dummy states or keep it simple.
-  // Wait! Let's verify the schema.prisma fields we created in Phase 2.
-  // In Phase 2, the user specified:
-  // Invoices Table: id, invoiceNumber, date, clientName, address, subject, subtotal, total, totalInWords, notes, userId, createdAt.
-  // There is no status field in Phase 2 schema!
-  // So we can compute or mock status, or treat all as SENT/PAID based on whether a total exists, or just fallback to DRAFT.
-  // Let's map invoices to have a status key. Let's make it look authentic.
-  const processedInvoices = invoices.map((inv, idx) => ({
+  const processedInvoices = invoices.map((inv) => ({
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
     date: inv.date.toISOString(),
     clientName: inv.clientName,
     total: inv.total,
-    status: (idx % 3 === 0 ? "PAID" : idx % 3 === 1 ? "SENT" : "DRAFT") as "DRAFT" | "SENT" | "PAID",
+    status: inv.status as "DRAFT" | "SENT" | "PAID",
   }));
 
   // Calculations for Stats

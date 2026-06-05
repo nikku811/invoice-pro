@@ -22,6 +22,7 @@ export interface InvoiceInput {
   address?: string;
   subject?: string;
   notes?: string;
+  status?: "DRAFT" | "SENT" | "PAID";
   items: InvoiceItemInput[];
 }
 
@@ -99,6 +100,7 @@ export async function createInvoice(data: InvoiceInput) {
           total,
           totalInWords,
           notes: data.notes?.trim() || null,
+          status: data.status ?? "DRAFT",
           userId,
           items: {
             create: itemsData,
@@ -206,6 +208,10 @@ export async function updateInvoice(id: string, data: InvoiceInput) {
           total,
           totalInWords,
           notes: data.notes?.trim() || null,
+          // Bug 5 fix: validate enum membership explicitly instead of truthiness
+          ...(data.status && ["DRAFT", "SENT", "PAID"].includes(data.status)
+            ? { status: data.status }
+            : {}),
           items: {
             create: itemsData,
           },
@@ -218,6 +224,7 @@ export async function updateInvoice(id: string, data: InvoiceInput) {
       revalidatePath("/dashboard");
       revalidatePath("/invoices");
       revalidatePath(`/invoices/${id}`);
+      revalidatePath(`/invoices/${id}/edit`); // Bug 6 fix: invalidate the edit route too
       return invoice;
     });
   } catch (error: any) {
@@ -263,4 +270,41 @@ export async function deleteInvoice(id: string) {
     console.error("Error deleting invoice Server Action:", error);
     throw new Error("Failed to delete invoice.");
   }
+}
+
+/**
+ * Update only the status of an invoice.
+ * Useful for quick one-click status changes from the invoice table/preview.
+ */
+export async function updateInvoiceStatus(
+  id: string,
+  status: "DRAFT" | "SENT" | "PAID"
+) {
+  const session = await getAuthSession();
+  const userId = session.user.id;
+
+  // Verify ownership first
+  const existing = await prisma.invoice.findUnique({
+    where: { id },
+    select: { userId: true },
+  });
+
+  if (!existing) {
+    throw new Error("Invoice not found.");
+  }
+  if (existing.userId !== userId) {
+    throw new Error("You do not have permission to update this invoice.");
+  }
+
+  const updated = await prisma.invoice.update({
+    where: { id },
+    data: { status },
+    select: { id: true, status: true },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${id}`);
+
+  return updated;
 }

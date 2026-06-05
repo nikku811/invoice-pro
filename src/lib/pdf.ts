@@ -20,7 +20,20 @@ interface InvoiceData {
   notes?: string | null;
 }
 
-export function generateInvoicePDF(invoice: InvoiceData, items: InvoiceItem[]) {
+export interface BusinessProfile {
+  orgName: string;
+  orgAddress?: string | null;
+  orgPhone?: string | null;
+  orgEmail?: string | null;
+  orgWebsite?: string | null;
+  orgGstin?: string | null;
+}
+
+export function generateInvoicePDF(
+  invoice: InvoiceData,
+  items: InvoiceItem[],
+  profile?: BusinessProfile | null
+) {
   // Create jsPDF instance (A4 size, portrait, mm units)
   const doc = new jsPDF({
     orientation: "portrait",
@@ -63,15 +76,28 @@ export function generateInvoicePDF(invoice: InvoiceData, items: InvoiceItem[]) {
   doc.text("Add logo", 32.5, 45, { align: "center" });
 
   // Organization Information
+  const orgName = profile?.orgName || "Your Organization";
+  const orgAddressLines = profile?.orgAddress
+    ? profile.orgAddress.split("\n").slice(0, 3).join("\n")
+    : "Address not set — configure in Settings";
+  const orgContact = [
+    profile?.orgPhone,
+    profile?.orgEmail,
+    profile?.orgGstin ? `GSTIN: ${profile.orgGstin}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   doc.setFont("Helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(30, 30, 30);
-  doc.text("Organization name", 55, 22);
+  doc.text(orgName, 55, 22);
 
   doc.setFont("Helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
-  doc.text("Organization address\nhajj\njsik\njaji", 55, 28);
+  const addressText = orgContact ? `${orgAddressLines}\n${orgContact}` : orgAddressLines;
+  doc.text(addressText, 55, 28);
 
   // Large INVOICE Heading
   doc.setFont("Helvetica", "bold");

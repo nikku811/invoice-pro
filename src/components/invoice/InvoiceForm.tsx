@@ -23,6 +23,7 @@ interface InvoiceFormProps {
     address?: string | null;
     subject?: string | null;
     notes?: string | null;
+    status?: string | null;
     items: {
       description: string;
       quantity: number;
@@ -42,6 +43,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
     address: "",
     subject: "",
     notes: "",
+    status: "DRAFT" as "DRAFT" | "SENT" | "PAID",
   });
 
   const [items, setItems] = useState<InvoiceItemInput[]>([
@@ -62,6 +64,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
         address: initialData.address || "",
         subject: initialData.subject || "",
         notes: initialData.notes || "",
+        status: (initialData.status as "DRAFT" | "SENT" | "PAID") || "DRAFT",
       });
 
       const formattedItems = initialData.items.map((item, idx) => ({
@@ -81,8 +84,8 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
     }
   }, [initialData]);
 
-  // Handle header field changes
-  const handleHeaderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Handle header field changes (inputs and selects)
+  const handleHeaderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
     if (errors[id]) {
@@ -187,6 +190,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
       address: formData.address,
       subject: formData.subject,
       notes: formData.notes,
+      status: formData.status,
       items: items.map((item) => ({
         description: item.description,
         quantity: item.quantity,
@@ -210,7 +214,12 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
         throw new Error(data.error || "Failed to save invoice.");
       }
 
-      router.push("/dashboard");
+      // Bug 2 fix: redirect to invoice preview in edit mode, dashboard in create mode
+      if (isEditMode) {
+        router.push(`/invoices/${initialData.id}`);
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     } catch (err: any) {
       setServerError(err.message || "Something went wrong.");
@@ -271,16 +280,33 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
             disabled={isLoading}
           />
 
-          <div className="md:col-span-2">
-            <Input
-              label="Subject"
-              id="subject"
-              placeholder="e.g. Project Consultation and Development Fees"
-              value={formData.subject}
+          {/* Status Dropdown */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="status" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Invoice Status
+            </label>
+            <select
+              id="status"
+              value={formData.status}
               onChange={handleHeaderChange}
               disabled={isLoading}
-            />
+              className="w-full px-3.5 py-2.5 rounded-lg border bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-950 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-sm cursor-pointer"
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="SENT">Sent</option>
+              <option value="PAID">Paid</option>
+            </select>
           </div>
+
+          {/* Bug 4 fix: Subject shares row with Status — no md:col-span-2 */}
+          <Input
+            label="Subject"
+            id="subject"
+            placeholder="e.g. Project Consultation and Development Fees"
+            value={formData.subject}
+            onChange={handleHeaderChange}
+            disabled={isLoading}
+          />
 
           <div className="md:col-span-2 flex flex-col gap-1.5">
             <label htmlFor="address" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -468,7 +494,12 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push("/dashboard")}
+          onClick={() =>
+            // Bug 3 fix: Cancel goes to preview in edit mode, dashboard in create mode
+            isEditMode
+              ? router.push(`/invoices/${initialData.id}`)
+              : router.push("/dashboard")
+          }
           disabled={isLoading}
         >
           Cancel

@@ -1,0 +1,78 @@
+// ============================================================
+// Professional Invoice Generator - Prisma Schema
+// Database: PostgreSQL (Neon)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// User Model
+// Stores registered user accounts with hashed passwords
+// ============================================================
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  // Relations
+  invoices Invoice[]
+
+  @@map("users")
+}
+
+// ============================================================
+// Invoice Model
+// Stores invoice header information linked to a user
+// ============================================================
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  date          DateTime
+  clientName    String
+  address       String?
+  subject       String?
+  subtotal      Float    @default(0)
+  total         Float    @default(0)
+  totalInWords  String?
+  notes         String?
+  userId        String
+  createdAt     DateTime @default(now())
+
+  // Relations
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items InvoiceItem[]
+
+  @@index([userId])
+  @@index([invoiceNumber])
+  @@map("invoices")
+}
+
+// ============================================================
+// InvoiceItem Model
+// Stores individual line items for each invoice
+// Amount is calculated as: quantity × rate
+// ============================================================
+model InvoiceItem {
+  id          String @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int
+  rate        Float
+  amount      Float
+
+  // Relations
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}

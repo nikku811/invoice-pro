@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getInvoiceById, updateInvoice, deleteInvoice } from "@/app/actions/invoices";
+import { getInvoiceByIdDb, updateInvoiceDb, deleteInvoiceDb } from "@/lib/invoices-db";
 
 // ============================================================
 // Single Invoice Endpoint
@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const invoice = await getInvoiceById(id);
+    const invoice = await getInvoiceByIdDb(id, session.user.id);
 
     return NextResponse.json(invoice, { status: 200 });
   } catch (error: any) {
@@ -46,8 +46,8 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    // Delegate to Server Action to reuse update validation & database transactions
-    const invoice = await updateInvoice(id, body);
+    // Call direct database helper instead of Server Action
+    const invoice = await updateInvoiceDb(id, body, session.user.id);
 
     return NextResponse.json(invoice, { status: 200 });
   } catch (error: any) {
@@ -71,7 +71,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    await deleteInvoice(id);
+    await deleteInvoiceDb(id, session.user.id);
 
     return NextResponse.json({ message: "Invoice deleted successfully" }, { status: 200 });
   } catch (error: any) {

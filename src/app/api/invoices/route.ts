@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { createInvoice } from "@/app/actions/invoices";
+import { createInvoiceDb } from "@/lib/invoices-db";
 
 // ============================================================
 // Invoices Base API Endpoint
@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Delegate to Server Action to reuse validation and transaction logic
-    const invoice = await createInvoice(body);
+    // Call direct database helper instead of Server Action
+    const invoice = await createInvoiceDb(body, session.user.id);
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (error: any) {

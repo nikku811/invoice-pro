@@ -13,6 +13,9 @@ export interface InvoiceInput {
   address?: string;
   subject?: string;
   notes?: string;
+  terms?: string;
+  dueDate?: string | Date | null;
+  advance?: number;
   status?: "DRAFT" | "SENT" | "PAID";
   items: InvoiceItemInput[];
 }
@@ -72,6 +75,7 @@ export async function createInvoiceDb(data: InvoiceInput, userId: string) {
       };
     });
 
+    const advance = Number((data.advance ?? 0).toFixed(2));
     const total = Number(subtotal.toFixed(2));
     const totalInWords = numberToWords(total);
 
@@ -87,6 +91,9 @@ export async function createInvoiceDb(data: InvoiceInput, userId: string) {
         total,
         totalInWords,
         notes: data.notes?.trim() || null,
+        terms: data.terms?.trim() || null,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        advance,
         status: data.status ?? "DRAFT",
         userId,
         items: {
@@ -165,6 +172,7 @@ export async function updateInvoiceDb(id: string, data: InvoiceInput, userId: st
       };
     });
 
+    const advance = Number((data.advance ?? 0).toFixed(2));
     const total = Number(subtotal.toFixed(2));
     const totalInWords = numberToWords(total);
 
@@ -180,6 +188,9 @@ export async function updateInvoiceDb(id: string, data: InvoiceInput, userId: st
         total,
         totalInWords,
         notes: data.notes?.trim() || null,
+        terms: data.terms?.trim() || null,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        advance,
         ...(data.status && ["DRAFT", "SENT", "PAID"].includes(data.status)
           ? { status: data.status }
           : {}),

@@ -31,6 +31,9 @@ export default async function EditInvoicePage({ params }: EditInvoicePageProps) 
     address: invoice.address,
     subject: invoice.subject,
     notes: invoice.notes,
+    terms: invoice.terms ?? null,
+    dueDate: invoice.dueDate ? invoice.dueDate.toISOString() : null,
+    advance: invoice.advance ?? 0,
     status: invoice.status,
     items: invoice.items.map((item) => ({
       description: item.description,

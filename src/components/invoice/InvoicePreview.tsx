@@ -18,10 +18,13 @@ interface InvoiceData {
   id: string;
   invoiceNumber: string;
   date: string | Date;
+  terms?: string | null;
+  dueDate?: string | Date | null;
   clientName: string;
   address?: string | null;
   subject?: string | null;
   subtotal: number;
+  advance?: number | null;
   total: number;
   totalInWords?: string | null;
   notes?: string | null;
@@ -45,15 +48,11 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
   }, []);
 
   const handleDownload = () => {
-    // B05 fix: warn user if invoice has > 11 items (PDF template limit)
-    if (items.length > 11) {
-      const proceed = window.confirm(
-        `This invoice has ${items.length} items but the PDF template only shows 11 rows. Items beyond row 11 will not appear in the PDF. Continue anyway?`
-      );
-      if (!proceed) return;
-    }
     generateInvoicePDF(invoice, items, profile);
   };
+
+  const advance = invoice.advance ?? 0;
+  const balanceDue = invoice.total - advance;
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-16">
@@ -62,7 +61,6 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
         <div className="flex items-center gap-2">
           <button
             // B16 fix: use router.back() so user returns to their origin
-            // (could be /invoices, /dashboard, or any other referrer)
             onClick={() => router.back()}
             className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 rounded-lg cursor-pointer"
             title="Back"
@@ -100,15 +98,24 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
         </div>
       </div>
 
-      {/* Visual Invoice Mock Page (matches the PDF layout design on-screen) */}
+      {/* Visual Invoice Mock Page (matches the PDF layout on-screen) */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden p-6 sm:p-12 text-slate-850 dark:text-slate-200 font-sans max-w-3xl mx-auto border-slate-300">
         {/* Border wrapper mirroring A4 frame */}
         <div className="border border-slate-200 dark:border-slate-800 p-6 space-y-6">
           {/* Header Row */}
           <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pb-6 border-b border-slate-200 dark:border-slate-850">
             <div className="flex items-start gap-4">
-              <div className="h-16 w-16 bg-slate-100 dark:bg-slate-800/40 text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700/50">
-                <span className="text-xxs font-black tracking-wide uppercase">Logo</span>
+              <div className="h-16 w-16 bg-slate-100 dark:bg-slate-800/40 text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700/50 overflow-hidden shrink-0">
+                {profile?.orgLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.orgLogo}
+                    alt="Organization logo"
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xxs font-black tracking-wide uppercase">Logo</span>
+                )}
               </div>
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -124,22 +131,34 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
             </div>
             <div className="text-right">
               <h1 className="text-3xl font-black tracking-wider text-slate-900 dark:text-white">
-                INVOICE
+                TAX INVOICE
               </h1>
             </div>
           </div>
 
           {/* Metadata Rows */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-200 dark:border-slate-850 text-sm">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <p className="font-semibold text-slate-900 dark:text-white flex gap-2">
-                <span className="w-24 text-slate-400">#</span>
+                <span className="w-28 text-slate-400 shrink-0">#</span>
                 <span>: {invoice.invoiceNumber}</span>
               </p>
               <p className="font-semibold text-slate-900 dark:text-white flex gap-2">
-                <span className="w-24 text-slate-400">Invoice Date</span>
+                <span className="w-28 text-slate-400 shrink-0">Invoice Date</span>
                 <span>: {formatDate(invoice.date)}</span>
               </p>
+              {invoice.terms && (
+                <p className="font-semibold text-slate-900 dark:text-white flex gap-2">
+                  <span className="w-28 text-slate-400 shrink-0">Terms</span>
+                  <span>: {invoice.terms}</span>
+                </p>
+              )}
+              {invoice.dueDate && (
+                <p className="font-semibold text-slate-900 dark:text-white flex gap-2">
+                  <span className="w-28 text-slate-400 shrink-0">Due Date</span>
+                  <span>: {formatDate(invoice.dueDate)}</span>
+                </p>
+              )}
             </div>
             <div className="border-l border-slate-200 dark:border-slate-850 pl-4 hidden sm:block">
               {/* Spacer matching design layout grid */}
@@ -148,7 +167,7 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
 
           {/* Bill To Info */}
           <div className="pb-4 border-b border-slate-200 dark:border-slate-850 text-sm">
-            <p className="font-bold text-slate-900 dark:text-white pb-2">Bill to :</p>
+            <p className="font-bold text-slate-900 dark:text-white pb-2">Bill To :</p>
             <div className="border-t border-slate-100 dark:border-slate-850 pt-2 text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
               <p className="font-semibold text-slate-800 dark:text-slate-350">{invoice.clientName}</p>
               <p className="whitespace-pre-line mt-1">{invoice.address || "N/A"}</p>
@@ -161,7 +180,7 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
             <span className="text-slate-650 dark:text-slate-350">{invoice.subject || "N/A"}</span>
           </div>
 
-          {/* Table Data list */}
+          {/* Table Data list — dynamic rows, no empty padding rows */}
           <div className="overflow-x-auto">
             <table className="w-full text-left border border-slate-200 dark:border-slate-800 border-collapse text-xs">
               <thead>
@@ -174,25 +193,25 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {/* Pad table with empty rows to match layout height */}
-                {Array.from({ length: 11 }).map((_, idx) => {
-                  const item = items[idx];
-                  return (
-                    <tr key={idx} className="h-9">
-                      <td className="p-2.5 text-center text-slate-400 border-r border-slate-200 dark:border-slate-800">{idx + 1}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 font-medium text-slate-800 dark:text-slate-250">
-                        {item?.description || ""}
-                      </td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">{item?.quantity || ""}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
-                        {item ? formatCurrency(item.rate) : ""}
-                      </td>
-                      <td className="p-2.5 text-right font-semibold text-slate-800 dark:text-slate-200">
-                        {item ? formatCurrency(item.amount) : ""}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {items.map((item, idx) => (
+                  <tr key={item.id} className="h-9">
+                    <td className="p-2.5 text-center text-slate-400 border-r border-slate-200 dark:border-slate-800">
+                      {idx + 1}
+                    </td>
+                    <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 font-medium text-slate-800 dark:text-slate-250">
+                      {item.description}
+                    </td>
+                    <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                      {item.quantity}
+                    </td>
+                    <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                      {formatCurrency(item.rate)}
+                    </td>
+                    <td className="p-2.5 text-right font-semibold text-slate-800 dark:text-slate-200">
+                      {formatCurrency(item.amount)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -203,7 +222,7 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
             <div className="md:col-span-7 p-4 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 space-y-4">
               <div>
                 <p className="font-bold text-slate-400 uppercase text-xxs tracking-wider">Total In Words</p>
-                <p className="font-medium text-slate-800 dark:text-slate-350 mt-1">
+                <p className="font-semibold italic text-slate-800 dark:text-slate-350 mt-1">
                   {invoice.totalInWords || "N/A"}
                 </p>
               </div>
@@ -218,13 +237,23 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
 
             {/* Right Box: Calculations & Signature */}
             <div className="md:col-span-5 flex flex-col justify-between">
-              {/* Subtotal */}
+              {/* Sub Total */}
               <div className="p-3 flex justify-between border-b border-slate-200 dark:border-slate-800 text-slate-400">
                 <span>Sub Total</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-350">
                   {formatCurrency(invoice.subtotal)}
                 </span>
               </div>
+
+              {/* Advance (only if > 0) */}
+              {advance > 0 && (
+                <div className="p-3 flex justify-between border-b border-slate-200 dark:border-slate-800 text-slate-400">
+                  <span>Advance</span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    (-) {formatCurrency(advance)}
+                  </span>
+                </div>
+              )}
 
               {/* Total */}
               <div className="p-3 flex justify-between border-b border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white">
@@ -234,11 +263,21 @@ export function InvoicePreview({ invoice, items }: InvoicePreviewProps) {
                 </span>
               </div>
 
+              {/* Balance Due */}
+              <div className="p-3 flex justify-between border-b border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white">
+                <span>Balance Due</span>
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(balanceDue)}
+                </span>
+              </div>
+
               {/* Signature Block */}
               <div className="p-6 pt-16 text-center">
-                <p className="font-bold text-slate-800 dark:text-slate-350 text-xxs tracking-wider uppercase">
-                  Authorized Signature
-                </p>
+                <div className="border-t border-slate-400 dark:border-slate-600 pt-2 mx-4">
+                  <p className="font-bold text-slate-800 dark:text-slate-350 text-xxs tracking-wider uppercase">
+                    Authorized Signature
+                  </p>
+                </div>
               </div>
             </div>
           </div>

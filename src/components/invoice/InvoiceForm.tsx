@@ -23,6 +23,9 @@ interface InvoiceFormProps {
     address?: string | null;
     subject?: string | null;
     notes?: string | null;
+    terms?: string | null;
+    dueDate?: string | Date | null;
+    advance?: number | null;
     status?: string | null;
     items: {
       description: string;
@@ -43,6 +46,9 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
     address: "",
     subject: "",
     notes: "",
+    terms: "",
+    dueDate: "",
+    advance: 0,
     status: "DRAFT" as "DRAFT" | "SENT" | "PAID",
   });
 
@@ -58,12 +64,18 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
   useEffect(() => {
     if (initialData) {
       const formattedDate = new Date(initialData.date).toISOString().split("T")[0];
+      const formattedDueDate = initialData.dueDate
+        ? new Date(initialData.dueDate).toISOString().split("T")[0]
+        : "";
       setFormData({
         date: formattedDate,
         clientName: initialData.clientName || "",
         address: initialData.address || "",
         subject: initialData.subject || "",
         notes: initialData.notes || "",
+        terms: initialData.terms || "",
+        dueDate: formattedDueDate,
+        advance: initialData.advance ?? 0,
         status: (initialData.status as "DRAFT" | "SENT" | "PAID") || "DRAFT",
       });
 
@@ -84,10 +96,13 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
     }
   }, [initialData]);
 
-  // Handle header field changes (inputs and selects)
+  // Handle header field changes (inputs, textareas, selects)
   const handleHeaderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [id]: id === "advance" ? Math.max(0, parseFloat(value) || 0) : value,
+    }));
     if (errors[id]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -146,9 +161,11 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
     setItems((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  // Calculate invoice total dynamically
+  // Calculate invoice totals dynamically
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const advance = formData.advance;
   const total = subtotal;
+  const balanceDue = Math.max(0, total - advance);
 
   // Validate form fields
   const validate = () => {
@@ -159,6 +176,9 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
     }
     if (!formData.date) {
       tempErrors.date = "Invoice date is required.";
+    }
+    if (formData.advance < 0) {
+      tempErrors.advance = "Advance cannot be negative.";
     }
 
     items.forEach((item, index) => {
@@ -190,6 +210,9 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
       address: formData.address,
       subject: formData.subject,
       notes: formData.notes,
+      terms: formData.terms || null,
+      dueDate: formData.dueDate || null,
+      advance: formData.advance,
       status: formData.status,
       items: items.map((item) => ({
         description: item.description,
@@ -280,7 +303,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
             disabled={isLoading}
           />
 
-          {/* Status Dropdown */}
+          {/* Invoice Status */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="status" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
               Invoice Status
@@ -298,16 +321,37 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
             </select>
           </div>
 
-          {/* Bug 4 fix: Subject shares row with Status — no md:col-span-2 */}
+          {/* Subject */}
           <Input
             label="Subject"
             id="subject"
-            placeholder="e.g. Project Consultation and Development Fees"
+            placeholder="e.g. Running Bill – Labour Charges"
             value={formData.subject}
             onChange={handleHeaderChange}
             disabled={isLoading}
           />
 
+          {/* Terms */}
+          <Input
+            label="Terms"
+            id="terms"
+            placeholder="e.g. Due on Receipt, Net 30, Custom"
+            value={formData.terms}
+            onChange={handleHeaderChange}
+            disabled={isLoading}
+          />
+
+          {/* Due Date */}
+          <Input
+            label="Due Date"
+            id="dueDate"
+            type="date"
+            value={formData.dueDate}
+            onChange={handleHeaderChange}
+            disabled={isLoading}
+          />
+
+          {/* Client Address — full width */}
           <div className="md:col-span-2 flex flex-col gap-1.5">
             <label htmlFor="address" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
               Client Address
@@ -329,7 +373,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Invoice Items</h2>
-          <p className="text-xs font-medium text-slate-400 mt-0.5">Add list items, quantities, and rates</p>
+          <p className="text-xs font-medium text-slate-400 mt-0.5">Add list items, quantities, and rates — unlimited rows supported</p>
         </div>
 
         {/* Dynamic Items Layout */}
@@ -374,7 +418,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                 <input
                   type="number"
                   min="1"
-                  step="1" /* B13 fix: integer only - matches Prisma Int schema */
+                  step="1"
                   placeholder="1"
                   value={item.quantity || ""}
                   onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
@@ -463,12 +507,43 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                 {formatCurrency(subtotal)}
               </span>
             </div>
+
+            {/* Advance input row */}
+            <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-850 pt-3">
+              <label htmlFor="advance" className="text-sm font-medium shrink-0 mr-3">
+                Advance (−)
+              </label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-400">₹</span>
+                <input
+                  id="advance"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.advance || ""}
+                  onChange={handleHeaderChange}
+                  disabled={isLoading}
+                  className="w-32 px-2.5 py-1.5 rounded-lg border bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-950 dark:text-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-right"
+                />
+              </div>
+            </div>
+
             <div className="flex justify-between text-base font-bold text-slate-900 dark:text-white pt-2 border-t border-slate-100 dark:border-slate-850">
-              <span>Total Amount</span>
+              <span>Total</span>
               <span className="text-indigo-600 dark:text-indigo-400">
                 {formatCurrency(total)}
               </span>
             </div>
+
+            {advance > 0 && (
+              <div className="flex justify-between text-sm font-bold text-slate-700 dark:text-slate-200 pt-2 border-t border-slate-100 dark:border-slate-850">
+                <span>Balance Due</span>
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(balanceDue)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

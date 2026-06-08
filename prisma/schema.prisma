@@ -1,8 +1,3 @@
-// ============================================================
-// Professional Invoice Generator - Prisma Schema
-// Database: PostgreSQL (Neon)
-// ============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,56 +8,34 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ============================================================
-// User Model
-// Stores registered user accounts with hashed passwords
-// ============================================================
 model User {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   name      String
-  email     String   @unique
+  email     String           @unique
   password  String
-  createdAt DateTime @default(now())
-
-  // Relations
-  invoices Invoice[]
-  profile  BusinessProfile?
+  createdAt DateTime         @default(now())
+  profile   BusinessProfile?
+  invoices  Invoice[]
 
   @@map("users")
 }
 
-// ============================================================
-// InvoiceStatus Enum
-// Represents the lifecycle state of an invoice
-// ============================================================
-enum InvoiceStatus {
-  DRAFT
-  SENT
-  PAID
-}
-
-// ============================================================
-// Invoice Model
-// Stores invoice header information linked to a user
-// ============================================================
 model Invoice {
-  id            String   @id @default(cuid())
-  invoiceNumber String   @unique
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
   date          DateTime
   clientName    String
   address       String?
   subject       String?
-  subtotal      Float    @default(0)
-  total         Float    @default(0)
+  subtotal      Float         @default(0)
+  total         Float         @default(0)
   totalInWords  String?
   notes         String?
-  status        InvoiceStatus @default(DRAFT)
   userId        String
-  createdAt     DateTime @default(now())
-
-  // Relations
-  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items InvoiceItem[]
+  createdAt     DateTime      @default(now())
+  status        InvoiceStatus @default(DRAFT)
+  items         InvoiceItem[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([invoiceNumber])
@@ -70,44 +43,36 @@ model Invoice {
   @@map("invoices")
 }
 
-// ============================================================
-// InvoiceItem Model
-// Stores individual line items for each invoice
-// Amount is calculated as: quantity × rate
-// ============================================================
 model InvoiceItem {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   invoiceId   String
   description String
   quantity    Int
   rate        Float
   amount      Float
-
-  // Relations
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
   @@map("invoice_items")
 }
 
-// ============================================================
-// BusinessProfile Model
-// Stores per-user organization details used on PDFs.
-// One-to-one relation with User (upserted on save).
-// ============================================================
 model BusinessProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  orgName     String
-  orgAddress  String?
-  orgPhone    String?
-  orgEmail    String?
-  orgWebsite  String?
-  orgGstin    String?
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  orgName    String
+  orgAddress String?
+  orgPhone   String?
+  orgEmail   String?
+  orgWebsite String?
+  orgGstin   String?
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("business_profiles")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
 }

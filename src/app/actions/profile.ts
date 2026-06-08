@@ -16,6 +16,7 @@ export interface BusinessProfileInput {
   orgEmail?: string;
   orgWebsite?: string;
   orgGstin?: string;
+  orgLogo?: string | null;
 }
 
 /**
@@ -55,6 +56,7 @@ export async function upsertBusinessProfile(data: BusinessProfileInput) {
       orgEmail: data.orgEmail?.trim() || null,
       orgWebsite: data.orgWebsite?.trim() || null,
       orgGstin: data.orgGstin?.trim() || null,
+      orgLogo: data.orgLogo || null,
     },
     update: {
       orgName: data.orgName.trim(),
@@ -63,6 +65,7 @@ export async function upsertBusinessProfile(data: BusinessProfileInput) {
       orgEmail: data.orgEmail?.trim() || null,
       orgWebsite: data.orgWebsite?.trim() || null,
       orgGstin: data.orgGstin?.trim() || null,
+      orgLogo: data.orgLogo !== undefined ? (data.orgLogo || null) : undefined,
     },
   });
 

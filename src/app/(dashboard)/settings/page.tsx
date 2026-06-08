@@ -22,6 +22,7 @@ export default async function SettingsPage() {
         orgEmail: profile.orgEmail,
         orgWebsite: profile.orgWebsite,
         orgGstin: profile.orgGstin,
+        orgLogo: profile.orgLogo,
       }
     : null;
 

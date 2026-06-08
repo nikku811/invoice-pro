@@ -19,12 +19,15 @@ interface Invoice {
   invoiceNumber: string;
   date: string | Date;
   clientName: string;
+  address?: string | null;
+  subject?: string | null;
   subtotal: number;
   total: number;
+  advance?: number | null;
+  terms?: string | null;
+  dueDate?: string | Date | null;
   totalInWords?: string | null;
   notes?: string | null;
-  subject?: string | null;
-  address?: string | null;
   status: "DRAFT" | "SENT" | "PAID";
   items: InvoiceItem[];
 }
@@ -229,13 +232,6 @@ export function InvoiceTable({
                     <td className="px-6 py-4.5 text-right space-x-2">
                       <button
                         onClick={() => {
-                          // B05 fix: warn user if invoice has > 11 items (PDF template limit)
-                          if (invoice.items.length > 11) {
-                            const proceed = window.confirm(
-                              `This invoice has ${invoice.items.length} items but the PDF template only shows 11 rows. Items beyond row 11 will not appear in the PDF. Continue anyway?`
-                            );
-                            if (!proceed) return;
-                          }
                           generateInvoicePDF(invoice, invoice.items, profile);
                         }}
                         className="text-xs font-bold text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 cursor-pointer"

@@ -33,6 +33,9 @@ export default async function ViewInvoicePage({ params }: ViewInvoicePageProps) 
     total: invoice.total,
     totalInWords: invoice.totalInWords,
     notes: invoice.notes,
+    terms: invoice.terms ?? null,
+    dueDate: invoice.dueDate ? invoice.dueDate.toISOString() : null,
+    advance: invoice.advance ?? 0,
   };
 
   const serializedItems = invoice.items.map((item) => ({
